@@ -11,20 +11,27 @@ $upload_filename = $cgi->param('upload_file');
 $upload_filename =~ s/\\/\//g;
 
 @filename_array = split(/\//, $upload_filename); 
-$filename = $dirs;
-$filename .= $filename_array[$#filename_array];
-$json_send = "{ret:1,filepath:\"realfile\"}";
+$filename = $filename_array[$#filename_array];
+
+$file = $dirs;
+$path = "upload/";
+$file .= $path;
+mkdir $file;
+$path .= $filename;
+$file .= $filename;
+$json_send = "{ret:realret,filepath:\"realfile\"}";
 
 $fh = $cgi->upload('upload_file');
 if (defined $fh) {
 	$ioh = $fh->handle;
-	open (OUTFILE, '>', $filename);
+	open (OUTFILE, '>', $file);
 	while ($bytesread = $ioh->read($buffer, 1024)) {
 		print OUTFILE $buffer;
 	}
 	close OUTFILE;
 	
-	$json_send =~ s/realfile/$filename/g;
+	$json_send =~ s/realfile/$path/g;
+	$json_send =~ s/realret/1/g;
 	
 	print $cgi->header,
 	#      $cgi->start_html('uploaded'),
@@ -35,6 +42,8 @@ if (defined $fh) {
 } else {
 
 	$json_send =~ s/realfile/\"\"/g;
+	$json_send =~ s/realret/0/g;
+	
 	print $cgi->header,
 	#      $cgi->start_html('uploaded'),
 	#      $cgi->h1('The file '),

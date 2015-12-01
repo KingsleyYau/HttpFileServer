@@ -153,7 +153,8 @@ void HttpFileServer::HandleChildRequest(int client) {
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"HttpFileServer::HandleChildRequest( "
-			"client : %d "
+			"client : %d, "
+			"start "
 			")",
 			client
 			);
@@ -381,15 +382,6 @@ void HttpFileServer::ExecuteCGI(
 		 */
 		close(cgi_pipe[1]);
 
-		LogManager::GetLogManager()->Log(
-				LOG_MSG,
-				"HttpFileServer::ExecuteCGI( "
-				"client : %d, "
-				"parent process waiting "
-				")",
-				client
-				);
-
 		if (strcasecmp(method, "POST") == 0) {
 			for (i = 0; i < content_length;) {
 				/**
@@ -402,7 +394,7 @@ void HttpFileServer::ExecuteCGI(
 
 				buffer[ret] = '\0';
 				LogManager::GetLogManager()->Log(
-						LOG_MSG,
+						LOG_STAT,
 						"HttpFileServer::ExecuteCGI( "
 						"client : %d, "
 						"request(%d) : \n%s"
@@ -411,7 +403,6 @@ void HttpFileServer::ExecuteCGI(
 						ret,
 						buffer
 						);
-				printf("# HttpFileServer::ExecuteCGI( request(%d) : \n%s\n)\n", ret, buffer);
 
 				/**
 				 * write to parent pipe
@@ -436,7 +427,7 @@ void HttpFileServer::ExecuteCGI(
 			buffer[ret] = '\0';
 
 			LogManager::GetLogManager()->Log(
-					LOG_MSG,
+					LOG_STAT,
 					"HttpFileServer::ExecuteCGI( "
 					"client : %d, "
 					"respond(%d) : \n%s"
@@ -445,7 +436,6 @@ void HttpFileServer::ExecuteCGI(
 					ret,
 					buffer
 					);
-			printf("# HttpFileServer::ExecuteCGI( respond(%d) : \n%s\n)\n", ret, buffer);
 
 			/**
 			 * send to client
