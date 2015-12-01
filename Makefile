@@ -19,7 +19,7 @@ CXXFLAGS +=	-I. -Ijson -Iinclude
 
 COMMONOBJ =	common/LogFile.o common/md5.o common/KThread.o \
 			common/ConfFile.o common/Arithmetic.o
-OBJS =		server.o HttpFileServer.o MessageList.o LogManager.o
+OBJS =		server.o HttpFileServer.o MessageList.o LogManager.o DataHttpParser.o DataParser.o
 OBJS +=		$(COMMONOBJ)
 
 LIBS =	-Wl,-Bdynamic -ldl -lz -lpthread 

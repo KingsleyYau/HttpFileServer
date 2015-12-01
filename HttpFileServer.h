@@ -9,6 +9,8 @@
 #define HTTPFILESERVER_H_
 
 #include "LogManager.h"
+#include "DataHttpParser.h"
+
 #include <common/ConfFile.hpp>
 #include <common/KSafeMap.h>
 #include <common/TimeProc.hpp>
@@ -22,12 +24,14 @@ using namespace std;
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 
+#include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
@@ -48,7 +52,7 @@ private:
 
 	void HandleChildRequest(int client);
 	int GetLine(int sock, char *buf, int size);
-	void ExecuteCGI(int client,	const char *path, const char *method);
+	void ExecuteCGI(int client,	const char *path, const char *method, const char *query_string);
 
 	int mServer;
 

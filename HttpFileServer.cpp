@@ -7,8 +7,6 @@
 
 #include "HttpFileServer.h"
 
-#define ISspace(x) isspace((int)(x))
-
 HttpFileServer::HttpFileServer() {
 	// TODO Auto-generated constructor stub
 
@@ -99,13 +97,14 @@ void HttpFileServer::Run() {
 		client = accept(mServer, (struct sockaddr *)&addr, &iAddrLen);
 
 		pid = fork();
-		if(pid == 0) {
+		if( pid == 0 ) {
 			// child
 			HandleChildRequest(client);
 	 	} else if( pid > 0 ) {
 	 		// parent
-			close(client);
 		}
+
+		close(client);
 
 		/* do nothing here */
 		sleep(5);
@@ -151,44 +150,60 @@ bool HttpFileServer::IsRunning() {
 }
 
 void HttpFileServer::HandleChildRequest(int client) {
-	char buf[1024];
-	int numchars;
-	char method[255];
-	char url[255];
-	char path[512];
-	size_t i, j;
-	struct stat st;
-	int cgi = 0;      /* becomes true if server decides this is a CGI
-	                    * program */
-	char *query_string = NULL;
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"HttpFileServer::HandleChildRequest( "
+			"client : %d "
+			")",
+			client
+			);
 
-	int ret = GetLine(client, buf, sizeof(buf));
+	char buffer[1025] = {'\0'};
+	int len = 0;
+	int ret = -1;
 
-	i = 0; j = 0;
-	while (!ISspace(buf[j]) && (i < sizeof(method) - 1)) {
-		method[i] = buf[j];
-		i++; j++;
+	len = GetLine(client, buffer, sizeof(buffer) - 1);
+	buffer[len] = '\0';
+
+	DataHttpParser dataHttpParser;
+	ret = dataHttpParser.ParseData(buffer, len);
+
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"HttpFileServer::HandleChildRequest( "
+			"client : %d, "
+			"ret : %d, "
+			"buffer : %s "
+			")",
+			client,
+			ret,
+			buffer
+			);
+
+	if( ret == 1 ) {
+	    char curPath[PATH_MAX + 1];
+	    if( NULL != realpath("./", curPath) ) {
+	    	string realPath = curPath;
+	    	realPath += dataHttpParser.GetPath();
+
+	    	LogManager::GetLogManager()->Log(
+	    			LOG_MSG,
+	    			"HttpFileServer::HandleChildRequest( "
+	    			"client : %d, "
+	    			"realPath : %s "
+	    			")",
+	    			client,
+	    			realPath.c_str()
+	    			);
+
+			ExecuteCGI(
+					client,
+					realPath.c_str(),
+					dataHttpParser.GetMethod().c_str(),
+					dataHttpParser.GetQueryString().c_str()
+					);
+	    }
 	}
-	method[i] = '\0';
-
-	if (strcasecmp(method, "POST") != 0) {
-		return;
-	}
-
-	i = 0;
-
-	while (ISspace(buf[j]) && (j < sizeof(buf))) {
-		j++;
-	}
-
-	while (!ISspace(buf[j]) && (i < sizeof(url) - 1) && (j < sizeof(buf))) {
-		url[i] = buf[j];
-		i++; j++;
-	}
-	url[i] = '\0';
-
-	sprintf(path, ".%s", url);
-	ExecuteCGI(client, path, method);
 }
 
 /**********************************************************************/
@@ -211,11 +226,9 @@ int HttpFileServer::GetLine(int sock, char *buf, int size) {
 
 	while ((i < size - 1) && (c != '\n')) {
 		n = recv(sock, &c, 1, 0);
-		/* DEBUG printf("%02X\n", c); */
 		if (n > 0) {
 			if (c == '\r') {
 				n = recv(sock, &c, 1, MSG_PEEK);
-				/* DEBUG printf("%02X\n", c); */
 				if ((n > 0) && (c == '\n'))
 					recv(sock, &c, 1, 0);
 				else
@@ -243,11 +256,25 @@ int HttpFileServer::GetLine(int sock, char *buf, int size) {
 void HttpFileServer::ExecuteCGI(
 		int client,
 		const char *path,
-		const char *method
+		const char *method,
+		const char *query_string
 		) {
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"HttpFileServer::ExecuteCGI( "
+			"client : %d, "
+			"path : %s, "
+			"method : %s, "
+			"query_string : %s "
+			")",
+			client,
+			path,
+			method,
+			query_string
+			);
+
 	char buf[1024];
-	int cgi_output[2];
-	int cgi_input[2];
+	int cgi_pipe[2];
 	pid_t pid;
 	int status;
 	int i;
@@ -257,4 +284,189 @@ void HttpFileServer::ExecuteCGI(
 	char buffer[1024];
 	int ret;
 	char content_type[255];
+
+	buf[0] = 'A'; buf[1] = '\0';
+	if (strcasecmp(method, "GET") == 0) {
+		while ((numchars > 0) && strcmp("\n", buf)) {
+			numchars = GetLine(client, buf, sizeof(buf));
+		}
+	} else if (strcasecmp(method, "POST") == 0) {
+		numchars = GetLine(client, buf, sizeof(buf));
+		while ((numchars > 0) && strcmp("\n", buf)) {
+			if (strncasecmp(buf, "Content-Length:", 15) == 0) {
+				content_length = atoi(&(buf[16]));
+			}
+			if (strncasecmp(buf, "Content-Type:", 13) == 0) {
+				char *p = &buf[14];
+				for(i=0; i<numchars && p[i] != ';'; i++) {
+					content_type[i] = p[i];
+				}
+				content_type[i] = 0;
+			}
+			numchars = GetLine(client, buf, sizeof(buf));
+		}
+
+		if (content_length == -1) {
+			close(client);
+			return;
+		}
+	}
+
+	sprintf(buf, "HTTP/1.0 200 OK\r\n");
+	send(client, buf, strlen(buf), 0);
+
+	if( socketpair(AF_UNIX, SOCK_STREAM, 0, cgi_pipe) < 0 ) {
+		close(client);
+		return;
+	}
+
+	if ( (pid = fork()) < 0 ) {
+		close(client);
+		return;
+	}
+
+	if (pid == 0) {
+		/**
+		 * child process
+		 */
+
+		char meth_env[255];
+		sprintf(meth_env, "REQUEST_METHOD=%s", method);
+		putenv(meth_env);
+
+		if (strcasecmp(method, "GET") == 0) {
+			char query_env[255];
+			sprintf(query_env, "QUERY_STRING=%s", query_string);
+			putenv(query_env);
+		} else if (strcasecmp(method, "POST") == 0) {
+			char length_env[255];
+			sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
+			putenv(length_env);
+
+			char content_env[255];
+			sprintf(content_env, "CONTENT_TYPE=%s", content_type);
+			putenv(content_env);
+		}
+
+		/**
+		 * close parent pipe
+		 */
+		close(cgi_pipe[0]);
+
+		/**
+		 * dup2 child write pipe
+		 */
+		dup2(cgi_pipe[1], STDOUT_FILENO);
+
+		/**
+		 * dup2 child read pipe
+		 */
+		dup2(cgi_pipe[1], STDIN_FILENO);
+
+//		/**
+//		 * close child read pipe
+//		 */
+//		close(cgi_pipe[1]);
+
+		execl(path, path, NULL);
+
+		exit(0);
+
+	} else {
+		/**
+		 * parent process
+		 */
+		/**
+		 * close child pipe
+		 */
+		close(cgi_pipe[1]);
+
+		LogManager::GetLogManager()->Log(
+				LOG_MSG,
+				"HttpFileServer::ExecuteCGI( "
+				"client : %d, "
+				"parent process waiting "
+				")",
+				client
+				);
+
+		if (strcasecmp(method, "POST") == 0) {
+			for (i = 0; i < content_length;) {
+				/**
+				 * recv from client
+				 */
+				if ((ret = recv(client, buffer, sizeof(buffer) - 1, 0)) < 0) {
+					perror("recv");
+					break;
+				}
+
+				buffer[ret] = '\0';
+				LogManager::GetLogManager()->Log(
+						LOG_MSG,
+						"HttpFileServer::ExecuteCGI( "
+						"client : %d, "
+						"request(%d) : \n%s"
+						")",
+						client,
+						ret,
+						buffer
+						);
+				printf("# HttpFileServer::ExecuteCGI( request(%d) : \n%s\n)\n", ret, buffer);
+
+				/**
+				 * write to parent pipe
+				 */
+				if (write(cgi_pipe[0], buffer, ret) < 0) {
+					perror("write");
+					break;
+				}
+				i += ret;
+
+	//			 /**
+	//			  * close child pipe input
+	//			  */
+	//			 shutdown(cgi_pipe[0], SHUT_WR);
+			}
+		}
+
+		/**
+		 * read from parent pipe
+		 */
+		while ((ret = read(cgi_pipe[0], buffer, sizeof(buffer) - 1)) > 0) {
+			buffer[ret] = '\0';
+
+			LogManager::GetLogManager()->Log(
+					LOG_MSG,
+					"HttpFileServer::ExecuteCGI( "
+					"client : %d, "
+					"respond(%d) : \n%s"
+					")",
+					client,
+					ret,
+					buffer
+					);
+			printf("# HttpFileServer::ExecuteCGI( respond(%d) : \n%s\n)\n", ret, buffer);
+
+			/**
+			 * send to client
+			 */
+			send(client, buffer, ret, 0);
+		}
+
+//		 /**
+//		  * close parent pipe
+//		  */
+//		 close(cgi_pipe[0]);
+
+		waitpid(pid, &status, 0);
+	}
+
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"HttpFileServer::ExecuteCGI( "
+			"client : %d, "
+			"finish "
+			")",
+			client
+			);
 }
