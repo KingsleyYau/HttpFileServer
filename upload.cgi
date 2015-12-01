@@ -7,16 +7,25 @@ $path_curf = File::Spec->rel2abs(__FILE__);
 ($vol, $dirs, $script) = File::Spec->splitpath($path_curf);
     
 $cgi = CGI->new;
+$device_id = $cgi->param('device_id');
 $upload_filename = $cgi->param('upload_file');
 $upload_filename =~ s/\\/\//g;
+$upload_filename =~ s/:/\//g;
 
-@filename_array = split(/\//, $upload_filename); 
-$filename = $filename_array[$#filename_array];
+#@filename_array = split(/\//, $upload_filename); 
+#$filename = $filename_array[$#filename_array];
+$filename = $upload_filename;
 
 $file = $dirs;
 $path = "upload/";
 $file .= $path;
 mkdir $file;
+$file .= $device_id;
+$file .= "/";
+mkdir $file;
+$path .= $device_id;
+$path .= "/";
+
 $path .= $filename;
 $file .= $filename;
 $json_send = "{ret:realret,filepath:\"realfile\"}";
