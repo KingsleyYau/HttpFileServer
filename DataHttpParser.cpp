@@ -49,7 +49,7 @@ string DataHttpParser::GetQueryString() {
 }
 
 bool DataHttpParser::ParseFirstLine(char* buffer) {
-	bool bFlag = true;
+	bool bFlag = false;
 	char temp[1024];
 	char* p = NULL;
 	int j = 0;
@@ -64,9 +64,11 @@ bool DataHttpParser::ParseFirstLine(char* buffer) {
 			if( strcmp("GET", p) == 0 ) {
 				mHttpType = GET;
 				mMethod = "GET";
+				bFlag = true;
 			} else if( strcmp("POST", p) == 0 ) {
 				mHttpType = POST;
 				mMethod = "POST";
+				bFlag = true;
 			} else {
 				bFlag = false;
 				break;

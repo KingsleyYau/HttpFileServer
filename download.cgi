@@ -7,12 +7,12 @@ $path_curf = File::Spec->rel2abs(__FILE__);
 ($vol, $dirs, $script) = File::Spec->splitpath($path_curf);
 
 $cgi = CGI->new;
-$file = $cgi->param('file');
+$file = $cgi->param('filepath');
 
 $filepath = $dirs;
 $filepath .= $file;
 
-# 获取下载文件名
+# 鏂囦欢璺緞
 $filename = $file;
 $dirindex = rindex($filepath, "\/");
 if( $dirindex != -1 && (length($filepath) > $dirindex + 1) ) {
