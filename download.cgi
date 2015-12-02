@@ -12,8 +12,15 @@ $file = $cgi->param('file');
 $filepath = $dirs;
 $filepath .= $file;
 
+# 获取下载文件名
+$filename = $file;
+$dirindex = rindex($filepath, "\/");
+if( $dirindex != -1 && (length($filepath) > $dirindex + 1) ) {
+	$filename = substr($filepath, $dirindex + 1, length($filepath) - ($dirindex + 1));
+}
+
 print "Content-Type:application/x-download\n";
-print "Content-Disposition: attachment; filename=$file\n\n";
+print "Content-Disposition: attachment; filename=$filename\n\n";
 
 open FILE, "<$filepath" or die "can't open : $!";
 binmode FILE;

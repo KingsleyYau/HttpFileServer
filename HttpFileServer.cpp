@@ -153,8 +153,7 @@ void HttpFileServer::HandleChildRequest(int client) {
 	LogManager::GetLogManager()->Log(
 			LOG_MSG,
 			"HttpFileServer::HandleChildRequest( "
-			"client : %d, "
-			"start "
+			"client : %d "
 			")",
 			client
 			);
@@ -273,6 +272,18 @@ void HttpFileServer::ExecuteCGI(
 			method,
 			query_string
 			);
+	printf("# HttpFileServer::ExecuteCGI( "
+			"client : %d, "
+			"request,\n"
+			"path : %s,\n"
+			"method : %s,\n"
+			"query_string : %s\n"
+			")\n",
+			client,
+			path,
+			method,
+			query_string
+			);
 
 	char buf[1024];
 	int cgi_pipe[2];
@@ -355,12 +366,12 @@ void HttpFileServer::ExecuteCGI(
 		close(cgi_pipe[0]);
 
 		/**
-		 * dup2 child write pipe
+		 * dup2 child stand output to pipe
 		 */
 		dup2(cgi_pipe[1], STDOUT_FILENO);
 
 		/**
-		 * dup2 child read pipe
+		 * dup2 child stand input to pipe
 		 */
 		dup2(cgi_pipe[1], STDIN_FILENO);
 
@@ -397,15 +408,23 @@ void HttpFileServer::ExecuteCGI(
 						LOG_STAT,
 						"HttpFileServer::ExecuteCGI( "
 						"client : %d, "
-						"request(%d) : \n%s"
+						"post(%d) : \n%s"
 						")",
+						client,
+						ret,
+						buffer
+						);
+				printf("# HttpFileServer::ExecuteCGI( "
+						"client : %d, "
+						"post(%d) : \n%s\n"
+						")\n",
 						client,
 						ret,
 						buffer
 						);
 
 				/**
-				 * write to parent pipe
+				 * write to pipe
 				 */
 				if (write(cgi_pipe[0], buffer, ret) < 0) {
 					perror("write");
@@ -414,14 +433,14 @@ void HttpFileServer::ExecuteCGI(
 				i += ret;
 
 	//			 /**
-	//			  * close child pipe input
+	//			  * close pipe input
 	//			  */
 	//			 shutdown(cgi_pipe[0], SHUT_WR);
 			}
 		}
 
 		/**
-		 * read from parent pipe
+		 * read from pipe
 		 */
 		while ((ret = read(cgi_pipe[0], buffer, sizeof(buffer) - 1)) > 0) {
 			buffer[ret] = '\0';
@@ -430,8 +449,16 @@ void HttpFileServer::ExecuteCGI(
 					LOG_STAT,
 					"HttpFileServer::ExecuteCGI( "
 					"client : %d, "
-					"respond(%d) : \n%s"
+					"respond(%d) : \n%s\n"
 					")",
+					client,
+					ret,
+					buffer
+					);
+			printf("# HttpFileServer::ExecuteCGI( "
+					"client : %d, "
+					"respond(%d) : \n%s\n"
+					")\n",
 					client,
 					ret,
 					buffer
@@ -442,7 +469,6 @@ void HttpFileServer::ExecuteCGI(
 			 */
 			send(client, buffer, ret, 0);
 		}
-
 //		 /**
 //		  * close parent pipe
 //		  */
@@ -452,7 +478,7 @@ void HttpFileServer::ExecuteCGI(
 	}
 
 	LogManager::GetLogManager()->Log(
-			LOG_MSG,
+			LOG_STAT,
 			"HttpFileServer::ExecuteCGI( "
 			"client : %d, "
 			"finish "
