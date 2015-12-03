@@ -41,7 +41,7 @@ $upload_filename =~ s/://g;
 $filename = $upload_filename;
 
 # 上传文件相对路径
-$path = "upload/";
+$path = "/upload/";
 $path .= $device_id;
 $path .= "/";
 $path .= $filename;
