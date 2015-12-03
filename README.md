@@ -5,7 +5,8 @@
 
 # 用法
 1.上传cgi</br>
-http://127.0.0.1:9875/upload.cgi  参考例子:upload_file.html</br>
+http://127.0.0.1:9875/upload.cgi</br> 
+参考例子:https://github.com/KingsleyYau/HttpFileServer/tree/master/upload_file.html</br>
 返回json</br>
 {"ret":1:成功,0:失败,"data":{"filepath":"文件相对路径"}}</br>
 
