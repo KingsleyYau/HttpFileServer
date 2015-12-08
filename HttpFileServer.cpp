@@ -100,6 +100,9 @@ void HttpFileServer::Run() {
 		if( pid == 0 ) {
 			// child
 			HandleChildRequest(client);
+
+			exit(0);
+
 	 	} else if( pid > 0 ) {
 	 		// parent
 		}
@@ -382,8 +385,6 @@ void HttpFileServer::ExecuteCGI(
 
 		execl(path, path, NULL);
 
-		exit(0);
-
 	} else {
 		/**
 		 * parent process
@@ -404,16 +405,16 @@ void HttpFileServer::ExecuteCGI(
 				}
 
 				buffer[ret] = '\0';
-				LogManager::GetLogManager()->Log(
-						LOG_STAT,
-						"HttpFileServer::ExecuteCGI( "
-						"client : %d, "
-						"post(%d) : \n%s"
-						")",
-						client,
-						ret,
-						buffer
-						);
+//				LogManager::GetLogManager()->Log(
+//						LOG_STAT,
+//						"HttpFileServer::ExecuteCGI( "
+//						"client : %d, "
+//						"post(%d) : \n%s"
+//						")",
+//						client,
+//						ret,
+//						buffer
+//						);
 				printf("# HttpFileServer::ExecuteCGI( "
 						"client : %d, "
 						"post(%d) : \n%s\n"
@@ -445,16 +446,16 @@ void HttpFileServer::ExecuteCGI(
 		while ((ret = read(cgi_pipe[0], buffer, sizeof(buffer) - 1)) > 0) {
 			buffer[ret] = '\0';
 
-			LogManager::GetLogManager()->Log(
-					LOG_STAT,
-					"HttpFileServer::ExecuteCGI( "
-					"client : %d, "
-					"respond(%d) : \n%s\n"
-					")",
-					client,
-					ret,
-					buffer
-					);
+//			LogManager::GetLogManager()->Log(
+//					LOG_STAT,
+//					"HttpFileServer::ExecuteCGI( "
+//					"client : %d, "
+//					"respond(%d) : \n%s\n"
+//					")",
+//					client,
+//					ret,
+//					buffer
+//					);
 			printf("# HttpFileServer::ExecuteCGI( "
 					"client : %d, "
 					"respond(%d) : \n%s\n"
