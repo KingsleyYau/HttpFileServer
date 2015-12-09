@@ -175,12 +175,10 @@ void HttpFileServer::HandleChildRequest(int client) {
 			LOG_MSG,
 			"HttpFileServer::HandleChildRequest( "
 			"client : %d, "
-			"ret : %d, "
-			"buffer : %s "
+			"ret : %d "
 			")",
 			client,
-			ret,
-			buffer
+			ret
 			);
 
 	if( ret == 1 ) {
@@ -189,22 +187,34 @@ void HttpFileServer::HandleChildRequest(int client) {
 	    	string realPath = curPath;
 	    	realPath += dataHttpParser.GetPath();
 
+	    	bool bCGI = false;
+	    	if( string::npos != realPath.find(".cgi") ) {
+	    		bCGI = true;
+	    	}
+
 	    	LogManager::GetLogManager()->Log(
 	    			LOG_MSG,
 	    			"HttpFileServer::HandleChildRequest( "
 	    			"client : %d, "
-	    			"realPath : %s "
+	    			"realPath : %s, "
+	    			"bCGI : %s "
 	    			")",
 	    			client,
-	    			realPath.c_str()
+	    			realPath.c_str(),
+	    			bCGI?"true":"false"
 	    			);
 
-			ExecuteCGI(
-					client,
-					realPath.c_str(),
-					dataHttpParser.GetMethod().c_str(),
-					dataHttpParser.GetQueryString().c_str()
-					);
+	    	if( bCGI ) {
+				ExecuteCGI(
+						client,
+						realPath.c_str(),
+						dataHttpParser.GetMethod().c_str(),
+						dataHttpParser.GetQueryString().c_str()
+						);
+	    	} else {
+	    		GetFile(client, realPath.c_str());
+	    	}
+
 	    }
 	}
 }
@@ -293,7 +303,6 @@ void HttpFileServer::ExecuteCGI(
 	pid_t pid;
 	int status;
 	int i;
-	//char c;
 	int numchars = 1;
 	int content_length = -1;
 	char buffer[1024];
@@ -353,6 +362,7 @@ void HttpFileServer::ExecuteCGI(
 			char query_env[255];
 			sprintf(query_env, "QUERY_STRING=%s", query_string);
 			putenv(query_env);
+
 		} else if (strcasecmp(method, "POST") == 0) {
 			char length_env[255];
 			sprintf(length_env, "CONTENT_LENGTH=%d", content_length);
@@ -486,4 +496,86 @@ void HttpFileServer::ExecuteCGI(
 			")",
 			client
 			);
+}
+
+void HttpFileServer::GetFile(int client, const char *path) {
+	LogManager::GetLogManager()->Log(
+			LOG_MSG,
+			"HttpFileServer::GetFile( "
+			"client : %d, "
+			"path : %s "
+			")",
+			client,
+			path
+			);
+
+	int numchars = 1;
+	char buf[1024];
+	buf[0] = 'A'; buf[1] = '\0';
+	while ((numchars > 0) && strcmp("\n", buf)) {
+		numchars = GetLine(client, buf, sizeof(buf));
+	}
+
+	FILE *resource = NULL;
+	resource = fopen(path, "r");
+	if (resource == NULL) {
+		sprintf(buf, "HTTP/1.0 404 NOT FOUND\r\n");
+		send(client, buf, strlen(buf), 0);
+
+	} else {
+		sprintf(buf, "HTTP/1.0 200 OK\r\n");
+		send(client, buf, strlen(buf), 0);
+
+		Headers(client, path);
+		Cat(client, resource);
+	}
+	fclose(resource);
+
+}
+
+void HttpFileServer::Headers(int client, const char *path) {
+	string filepath = path;
+	char buf[1024];
+
+	if( filepath.find(".jpg") != string::npos ) {
+		sprintf(buf, "Content-Type: image/jpg\r\n");
+
+	} else if( filepath.find(".png") != string::npos ) {
+		sprintf(buf, "Content-Type: image/png\r\n");
+
+	} else {
+		sprintf(buf, "Content-Type: text/html\r\n");
+
+	}
+	send(client, buf, strlen(buf), 0);
+
+//	struct stat statbuf;
+//	if( -1 != stat(filepath.c_str(), &statbuf) ) {
+//		sprintf(buf, "Content-Length: %d\r\n", statbuf.st_size);
+//		send(client, buf, strlen(buf), 0);
+//	}
+
+	strcpy(buf, "\r\n");
+	send(client, buf, strlen(buf), 0);
+
+}
+
+void HttpFileServer::Cat(int client, FILE *resource) {
+	char buf[10240];
+
+	fseek(resource, 0, SEEK_SET);
+	int iRead;
+	while ( true ) {
+		iRead = fread(buf, 1, sizeof(buf), resource);
+		if( iRead > 0 ) {
+			if( -1 != send(client, buf, iRead, 0) ) {
+				break;
+			}
+		}
+
+		if( iRead < sizeof(buf) ) {
+			break;
+		}
+
+	}
 }

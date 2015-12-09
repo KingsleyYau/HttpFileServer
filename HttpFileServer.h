@@ -53,6 +53,9 @@ private:
 	void HandleChildRequest(int client);
 	int GetLine(int sock, char *buf, int size);
 	void ExecuteCGI(int client,	const char *path, const char *method, const char *query_string);
+	void GetFile(int client, const char *path);
+	void Headers(int client, const char *path);
+	void Cat(int client, FILE *resource);
 
 	int mServer;
 
