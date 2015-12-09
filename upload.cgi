@@ -33,18 +33,29 @@ if( length $device_id == 0 ) {
 }
 
 # 获取上传文件名和目录
+# 上传目录
+$upload_dir = $cgi->param('upload_dir');
+
+# 上传文件
 $upload_filename = $cgi->param('upload_file');
 $upload_filename =~ s/\\/\//g;
 $upload_filename =~ s/://g;
-#@filename_array = split(/\//, $upload_filename); 
-#$filename = $filename_array[$#filename_array];
-$filename = $upload_filename;
+
+# 只获取文件名
+@filename_array = split(/\//, $upload_filename); 
+$filename = $filename_array[$#filename_array];
+
+# 获取全部路径
+#$filename = $upload_filename;
 
 # 上传文件相对路径
 $path = "/upload/";
 $path .= $device_id;
 $path .= "/";
+$path .= $upload_dir;
+$path .= "/";
 $path .= $filename;
+$path =~ s/\/\//\//g;
 
 # 上传文件绝对路径
 $file = $dirs;
