@@ -23,6 +23,16 @@ string sConf = "";  // 配置文件
 
 bool Parse(int argc, char *argv[]);
 
+void sig_chld(int signo) {
+	pid_t pid;
+    int stat;
+
+    while((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
+    }
+
+    return;
+}
+
 int main(int argc, char *argv[]) {
 	printf("############## Http File Server ############## \n");
 	printf("# %s \n", VERSION_STRING);
@@ -35,6 +45,7 @@ int main(int argc, char *argv[]) {
 	sa.sa_handler = SIG_IGN;
 	sigemptyset(&sa.sa_mask);
 	sigaction(SIGPIPE, &sa, 0);
+	sigaction(SIGCHLD, &sa, 0);
 
 	Parse(argc, argv);
 

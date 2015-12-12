@@ -543,17 +543,30 @@ void HttpFileServer::Headers(int client, const char *path) {
 	} else if( filepath.find(".png") != string::npos ) {
 		sprintf(buf, "Content-Type: image/png\r\n");
 
-	} else {
+	} else if( filepath.find(".htm") != string::npos ){
 		sprintf(buf, "Content-Type: text/html\r\n");
 
+	} else if( filepath.find(".html") != string::npos ) {
+		sprintf(buf, "Content-Type: text/html\r\n");
+
+	} else {
+		sprintf(buf, "Content-Type: application/x-download\r\n");
+		send(client, buf, strlen(buf), 0);
+
+		string filename = filepath;
+		string::size_type pos = filepath.find_last_of("/");
+		if( (filepath.length() > 1) && (pos != string::npos) ) {
+			filename = filepath.substr(pos + 1, filepath.length() - (pos + 1));
+		}
+		sprintf(buf, "Content-Disposition: attachment; filename=%s\r\n", filename.c_str());
 	}
 	send(client, buf, strlen(buf), 0);
 
-//	struct stat statbuf;
-//	if( -1 != stat(filepath.c_str(), &statbuf) ) {
-//		sprintf(buf, "Content-Length: %d\r\n", statbuf.st_size);
-//		send(client, buf, strlen(buf), 0);
-//	}
+	struct stat statbuf;
+	if( -1 != stat(filepath.c_str(), &statbuf) ) {
+		sprintf(buf, "Content-Length: %d\r\n", statbuf.st_size);
+		send(client, buf, strlen(buf), 0);
+	}
 
 	strcpy(buf, "\r\n");
 	send(client, buf, strlen(buf), 0);
@@ -568,7 +581,7 @@ void HttpFileServer::Cat(int client, FILE *resource) {
 	while ( true ) {
 		iRead = fread(buf, 1, sizeof(buf), resource);
 		if( iRead > 0 ) {
-			if( -1 != send(client, buf, iRead, 0) ) {
+			if( -1 == send(client, buf, iRead, 0) ) {
 				break;
 			}
 		}
